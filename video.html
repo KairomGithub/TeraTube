@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xem Video - TeraTube</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        h1 {
+            color: #ff0000;
+            margin: 0;
+            cursor: pointer;
+        }
+        .video-container {
+            margin: 20px 0;
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background: #000;
+            border-radius: 8px;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .video-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .video-title {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .related-videos {
+            margin-top: 20px;
+        }
+        .related-videos h3 {
+            margin-bottom: 15px;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .related-item {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .related-item:hover {
+            transform: translateY(-3px);
+        }
+        .related-thumb {
+            position: relative;
+            height: 0;
+            padding-bottom: 56.25%;
+        }
+        .related-thumb img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .related-info {
+            padding: 8px;
+        }
+        .related-title {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .search-box {
+            display: flex;
+            width: 100%;
+            max-width: 400px;
+        }
+        .search-box input {
+            flex-grow: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+        }
+        .search-box button {
+            padding: 8px 15px;
+            background: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 onclick="goHome()">YouTube Không Quảng Cáo</h1>
+        <div class="search-box">
+            <input type="text" id="searchBox" placeholder="Tìm kiếm..." />
+            <button onclick="searchVideos()">Tìm</button>
+        </div>
+    </header>
+    
+    <div id="videoInfo" class="video-info">
+        <h2 id="videoTitle" class="video-title">Đang tải video...</h2>
+        <p id="videoChannel"></p>
+    </div>
+    
+    <div id="videoContainer" class="video-container">
+        <!-- Video sẽ được thêm vào đây -->
+    </div>
+    
+    <div class="related-videos">
+        <h3>Video liên quan</h3>
+        <div id="relatedVideos" class="video-grid"></div>
+    </div>
+
+    <script>
+        const API_KEY = "YOUR_API_KEY";
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoID = urlParams.get("id");
+        
+        // Tải thông tin video
+        function loadVideoDetails() {
+            if (videoID) {
+                // Hiển thị video
+                document.getElementById("videoContainer").innerHTML = `
+                    <iframe src="https://www.youtube.com/embed/${videoID}?autoplay=1&controls=1&modestbranding=1&rel=0" 
+                            frameborder="0" allowfullscreen></iframe>
+                `;
+                
+                // Tải thông tin chi tiết của video
+                fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoID}&key=${API_KEY}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.items && data.items.length > 0) {
+                            const video = data.items[0].snippet;
+                            document.title = `${video.title} - YouTube Không Quảng Cáo`;
+                            document.getElementById("videoTitle").textContent = video.title;
+                            document.getElementById("videoChannel").textContent = `Kênh: ${video.channelTitle}`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Lỗi khi tải thông tin video:", error);
+                    });
+                    
+                // Tải các video liên quan
+                fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&relatedToVideoId=${videoID}&type=video&maxResults=8&key=${API_KEY}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const relatedVideosContainer = document.getElementById("relatedVideos");
+                        relatedVideosContainer.innerHTML = "";
+                        
+                        if (data.items && data.items.length > 0) {
+                            data.items.forEach(video => {
+                                relatedVideosContainer.innerHTML += `
+                                    <div class="related-item" onclick="watchVideo('${video.id.videoId}')">
+                                        <div class="related-thumb">
+                                            <img src="${video.snippet.thumbnails.medium.url}" alt="${video.snippet.title}" />
+                                        </div>
+                                        <div class="related-info">
+                                            <h4 class="related-title">${video.snippet.title}</h4>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            relatedVideosContainer.innerHTML = "<p>Không có video liên quan nào.</p>";
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Lỗi khi tải video liên quan:", error);
+                        document.getElementById("relatedVideos").innerHTML = "<p>Không thể tải video liên quan.</p>";
+                    });
+            } else {
+                document.getElementById("videoContainer").innerHTML = "<p>ID video không hợp lệ!</p>";
+                document.getElementById("videoTitle").textContent = "Video không tồn tại";
+            }
+        }
+
+        function watchVideo(newVideoID) {
+            window.location.href = `video.html?id=${newVideoID}`;
+        }
+
+        function goHome() {
+            window.location.href = "index.html";
+        }
+        
+        function searchVideos() {
+            const query = document.getElementById("searchBox").value;
+            if (query.trim()) {
+                window.location.href = `search.html?q=${encodeURIComponent(query)}`;
+            }
+        }
+        
+        // Cho phép tìm kiếm khi nhấn Enter
+        document.getElementById("searchBox").addEventListener("keyup", function(event) {
+            if (event.key === "Enter") {
+                searchVideos();
+            }
+        });
+
+        loadVideoDetails();
+    </script>
+</body>
+</html>
